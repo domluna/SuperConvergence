@@ -1,5 +1,7 @@
 # Super Convergence
 
+> WIP: I'll post notebooks in a sec ...
+
 Playing with ideas from:
 
 - [Cyclical Learning Rates for Training Neural Networks](https://arxiv.org/abs/1506.01186) [1]
