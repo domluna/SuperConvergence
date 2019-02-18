@@ -96,12 +96,12 @@ end
 ResidualBlock(filters, kernels::Array{Int}, pads::Array{Int}, strides::Array{Int}, shortcut = identity) =
   ResidualBlock(filters, [(i,i) for i in kernels], [(i,i) for i in pads], [(i,i) for i in strides], shortcut)
 
-function (block::ResidualBlock)(input)
-    local value = copy.(input)
+function (block::ResidualBlock)(x)
+    sc = block.shortcut(x)
     for i in 1:length(block.conv_layers)-1
-        value = relu.((block.norm_layers[i])((block.conv_layers[i])(value)))
+        x = relu.((block.norm_layers[i])((block.conv_layers[i])(x)))
     end
-    relu.(((block.norm_layers[end])((block.conv_layers[end])(value))) + block.shortcut(input))
+    relu.(((block.norm_layers[end])((block.conv_layers[end])(x))) + sc)
 end
 
 function BasicBlock(filters::Int, downsample::Bool = false, res_top::Bool = false)
