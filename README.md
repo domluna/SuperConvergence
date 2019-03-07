@@ -1,5 +1,12 @@
 # Super Convergence
 
+Update: WideResNet 16-10 is ~20x slower than [resnet50](https://github.com/KristofferC/resnet/blob/master/resnet.py). This is based on timing 10 batches of size 64.
+
+```
+julia> CuArrays.@time for i in 1:10 Flux.back!(lf(cifar.train[i][1], cifar.train[i][2])) end
+  7.949757 seconds (203.00 k CPU allocations: 9.148 MiB, 26.60% gc time) (2.46 k GPU allocations: 36.843 GiB)
+```
+
 > WIP: I'll post notebooks in a sec ...
 
 Playing with ideas from:
