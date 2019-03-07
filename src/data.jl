@@ -1,54 +1,65 @@
-getarray(X) = Float32.(permutedims(channelview(X), (2, 3, 1)))
+getarray(x) = Float32.(permutedims(channelview(x), (2, 3, 1)))
+
+function make_minibatch(fx, fy, X, Y, idxs)
+    sz = size(fx(X[1]))
+    sz = length(sz) == 3 ? sz : (sz..., 1)
+    #= @info sz =#
+    X_batch = Array{Float32}(undef, sz..., length(idxs))
+    for i in 1:length(idxs)
+        X_batch[:, :, :, i] = fx(X[idxs[i]])
+    end
+    Y_batch = fy(Y[idxs])
+    return X_batch, Y_batch
+end
 
 function load_cifar10(;batch_size=128, train_val_split=0.95)
     @info("Loading CIFAR10 ...")
-    X = trainimgs(CIFAR10)
-    img_size = size(getarray(X[1].img))
+    fx = x -> getarray(x)
+    fy = y -> onehotbatch(y, 1:10)
+
+    imgs = trainimgs(CIFAR10)
+    X = map(x -> x.img, imgs)
+    Y = map(x -> x.ground_truth.class, imgs)
+
     idxs = Random.shuffle(1:length(X))
-    train_idxs = idxs[1:(Int(length(X) * train_val_split))]
+    train_idx_range = 1:Int(length(idxs) * train_val_split)
+    val_idx_range = train_idx_range[end]+1:length(idxs)
+    train_idxs = partition(train_idx_range, batch_size)
+    train = [make_minibatch(fx, fy, X, Y, i) for i in train_idxs]
 
-    # training set
-    train_imgs = [getarray(X[i].img) for i in train_idxs]
-    train_labels = onehotbatch([X[i].ground_truth.class for i in train_idxs], 1:10)
-    train = gpu.([(cat(train_imgs[i]..., dims = 4), train_labels[:, i]) for i in partition(1:length(train_imgs), batch_size)])
+    val_idxs = partition(val_idx_range, batch_size)
+    val = [make_minibatch(fx, fy, X, Y, i) for i in val_idxs]
 
-    # validation set
-    val_idxs = idxs[length(train_idxs)+1:length(X)]
-    val_imgs = Array{Float32}(undef, img_size..., length(val_idxs))
-    for (i, idx) in enumerate(val_idxs)
-        val_imgs[:, :, :, i] = getarray(X[idx].img)
-    end
-    val_labels = onehotbatch([X[i].ground_truth.class for i in val_idxs], 1:10)
-    val = gpu.((val_imgs, val_labels))
+    imgs = valimgs(CIFAR10)
+    X = map(x -> x.img, imgs)
+    Y = map(x -> x.ground_truth.class, imgs)
+    test_idxs = partition(1:length(X), batch_size)
+    test = [make_minibatch(fx, fy, X, Y, i) for i in test_idxs]
 
-    # test set
-    X = valimgs(CIFAR10)
-    test_imgs = Array{Float32}(undef, img_size..., length(X))
-    for i in 1:length(X)
-        test_imgs[:, :, :, i] = getarray(X[i].img)
-    end
-    test_labels = onehotbatch([X[i].ground_truth.class for i in 1:length(X)], 1:10)
-    test = gpu.((test_imgs, test_labels))
-    return (train=train, val=val, test=test)
+    return (train=gpu.(train), val=gpu.(val), test=gpu.(test))
 end
 
-function load_mnist(;batch_size=128)
+function load_mnist(;batch_size=128, train_val_split=0.95)
     @info("Loading MNIST ...")
+    fx = x -> Float32.(x)
+    fy = y -> onehotbatch(y, 0:9)
     X = MNIST.images()
-    y = MNIST.labels()
-    train_imgs = [Float32.(X[i]) for i in 1:length(X)]
-    train_labels = onehotbatch(y, 0:9)
-    train = gpu.([(cat(train_imgs[i]..., dims = 4), train_labels[:, i]) for i in partition(1:length(train_imgs), batch_size)])
+    Y = MNIST.labels()
 
+    idxs = Random.shuffle(1:length(X))
+    train_idx_range = 1:Int(length(idxs) * train_val_split)
+    val_idx_range = train_idx_range[end]+1:length(idxs)
+    train_idxs = partition(train_idx_range, batch_size)
+    train = [make_minibatch(fx, fy, X, Y, i) for i in train_idxs]
+
+    val_idxs = partition(val_idx_range, batch_size)
+    val = [make_minibatch(fx, fy, X, Y, i) for i in val_idxs]
 
     X = MNIST.images(:test)
-    y = MNIST.labels(:test)
-    test_imgs = Array{Float32}(undef, size(X[1])..., 1, length(X))
-    for i in 1:length(X)
-        test_imgs[:, :, :, i] = Float32.(X[i])
-    end
-    test_labels = onehotbatch(y, 0:9)
-    test = gpu.((test_imgs, test_labels))
-    return (train=train, test=test)
+    Y = MNIST.labels(:test)
+    test_idxs = partition(1:length(X), batch_size)
+    test = [make_minibatch(fx, fy, X, Y, i) for i in test_idxs]
+
+    return (train=gpu.(train), val=gpu.(val), test=gpu.(test))
 end
 
