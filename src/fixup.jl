@@ -1,3 +1,5 @@
+# TODO: Use `Dense` and `Conv` layers with no bias.
+
 """
 """
 struct BasicBlock
