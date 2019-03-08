@@ -15,6 +15,8 @@ include("data.jl")
 include("cycle.jl")
 include("fixup.jl")
 
+# TODO: Have `val_data` as a kw arg set to nothing by default?
+
 """
 find_eta!!(loss, params, train_data, val_data, opt;)
 
