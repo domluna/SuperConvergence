@@ -77,7 +77,7 @@ function find_eta!(loss, ps, train_data, val_data, opt;
 
         # update model
         Flux.back!(l)
-        Flux.Optimise._update_params!(opt, ps)
+        Flux.Optimise.update!(opt, ps)
 
         _opt.eta *= mult
         batch_idx += 1
@@ -120,7 +120,7 @@ function one_cycle!(loss, ps, data, opt, etas, rhos; cb = () -> ())
 
         # update model
         Flux.back!(l)
-        Flux.Optimise._update_params!(opt, ps)
+        Flux.Optimise.update!(opt, ps)
 
         # call callback at the end of each epoch
         i % length(data) == 0 && cb()
