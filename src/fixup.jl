@@ -18,13 +18,13 @@ Flux.@treelike BasicBlock
 function BasicBlock(ch::Pair{Int,Int}, stride::Int)
     conv1 = Conv((3, 3), ch, stride=stride, pad=1)
     conv2 = Conv((3, 3), ch[2] => ch[2], stride=1, pad=1)
-    mults = Flux.param(ones(Float32, (1, 1, 1, 1)))
-    bias1 = Flux.param(zeros(Float32, (1, 1, 1, 1)))
-    bias2 = Flux.param(zeros(Float32, (1, 1, 1, 1)))
-    bias3 = Flux.param(zeros(Float32, (1, 1, 1, 1)))
-    bias4 = Flux.param(zeros(Float32, (1, 1, 1, 1)))
-    #= biases = Flux.param(zeros(Float32, (4, 4))) =#
-    #= biases = [Flux.param(zeros(Float32, (0, 0, 0, 0))) for _ in 1:4] =#
+    mults = ones(Float32, (1, 1, 1, 1))
+    bias1 = zeros(Float32, (1, 1, 1, 1))
+    bias2 = zeros(Float32, (1, 1, 1, 1))
+    bias3 = zeros(Float32, (1, 1, 1, 1))
+    bias4 = zeros(Float32, (1, 1, 1, 1))
+    #= biases = zeros(Float32, (4, 4)) =#
+    #= biases = [zeros(Float32, (0, 0, 0, 0)) for _ in 1:4] =#
     shortcut = ch[1] == ch[2] ? identity : Conv((1, 1), ch, stride=stride, pad=0)
     #= BasicBlock(conv1, conv2, shortcut, biases, mults) =#
     BasicBlock(conv1, conv2, shortcut, bias1, bias2, bias3, bias4, mults)
@@ -55,11 +55,11 @@ the weight layers inside residual branches by L^(−1 / 2m−2).
 function fixup_init!(b::BasicBlock, layer_index::Int)
     n = prod((size(b.conv1.weight)[1:2]..., size(b.conv1.weight)[end]))
     @info "fixup" n layer_index sqrt(2 / n) layer_index^-0.5 * sqrt(2 / n)
-    b.conv1.weight.data .= randn(size(b.conv1.weight)) * (layer_index^-0.5 * sqrt(2 / n))
-    b.conv2.weight.data .= 0
+    b.conv1.weight .= randn(size(b.conv1.weight)) * (layer_index^-0.5 * sqrt(2 / n))
+    b.conv2.weight .= 0
     if b.shortcut !== identity 
         n = prod((size(b.shortcut.weight)[1:2]..., size(b.shortcut.weight)[end]))
-        b.shortcut.weight.data .= randn(size(b.shortcut.weight)) * sqrt(2 / n)
+        b.shortcut.weight .= randn(size(b.shortcut.weight)) * sqrt(2 / n)
     end
     return nothing
 end
@@ -129,8 +129,8 @@ function WideResNet(depth::Int, width::Int, n_classes::Int, in_channels::Int=3)
 
     pool = MeanPool((8, 8), stride=1)
     fc = Dense(out_channels[4], n_classes)
-    fc.W.data .= 0
-    fc.b.data .= 0
+    fc.W .= 0
+    fc.b .= 0
 
     WideResNet(Chain(conv1, conv2..., conv3..., conv4..., 
                      pool, x -> reshape(relu.(x), :, size(x, 4)), fc, softmax))
